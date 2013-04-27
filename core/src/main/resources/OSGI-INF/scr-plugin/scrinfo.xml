@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<components xmlns:scr="http://www.osgi.org/xmlns/scr/v1.0.0">
+    <scr:component enabled="true" name="com.activecq.tools.flipbook.FlipbookImageResourceDecorator">
+        <implementation class="com.activecq.tools.flipbook.FlipbookImageResourceDecorator"/>
+        <service servicefactory="false">
+            <provide interface="org.apache.sling.api.resource.ResourceDecorator"/>
+        </service>
+        <property name="service.pid" value="com.activecq.tools.flipbook.FlipbookImageResourceDecorator" private="false"/>
+    </scr:component>
+</components>
