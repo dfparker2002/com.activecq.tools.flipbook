@@ -1,5 +1,0 @@
-#base=js
-
-jquery.colorbox-min.js
-flipbook.js
-flipbook-gallery.js
