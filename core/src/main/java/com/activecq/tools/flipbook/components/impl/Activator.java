@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.activecq.tools.flipbook;
+package com.activecq.tools.flipbook.components.impl;
 
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;

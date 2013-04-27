@@ -1,8 +1,9 @@
 <%@page session="false" contentType="text/html; charset=utf-8" pageEncoding="UTF-8"
-        import="java.util.Date, java.text.SimpleDateFormat,com.activecq.tools.flipbook.FlipbookComponent"%>
+        import="java.util.Date, java.text.SimpleDateFormat,
+                com.activecq.tools.flipbook.components.FlipbookService"%>
 <%@include file="/apps/vendors/activecq/tools/flipbook/global/global.jsp" %><%
 
-FlipbookComponent c = new FlipbookComponent(slingRequest);
+FlipbookService c = sling.getService(FlipbookService.class);
 
 SimpleDateFormat dateFormat = new SimpleDateFormat("MMMMM d, yyyy");
 SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm aaa");
@@ -16,9 +17,8 @@ SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm aaa");
       <strong>Reporting on:</strong>
       <br/>
       <%
-      for(String path : c.getPaths()) {
+      for(String path : c.getPaths(currentPage)) {
       %><%= path %><br/><%
       }
       %></p>
-
 </div>

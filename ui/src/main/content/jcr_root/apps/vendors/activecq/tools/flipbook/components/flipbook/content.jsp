@@ -1,12 +1,14 @@
-<%@page session="false" contentType="text/html; charset=utf-8" pageEncoding="UTF-8" trimDirectiveWhitespaces="true"
-import="com.activecq.tools.flipbook.*,
+<%@page session="false" contentType="text/html; charset=utf-8" pageEncoding="UTF-8"
+import="com.activecq.tools.flipbook.components.*,
         com.activecq.tools.quickimage.helpers.QuickImageHelper,
         com.day.cq.wcm.api.components.Component,
+        com.day.cq.wcm.api.WCMMode,
         org.apache.sling.api.resource.*,
         org.apache.commons.lang.*,
         java.util.*"%><%
 %><%@include file="/apps/vendors/activecq/tools/flipbook/global/global.jsp" %><%
-%><% FlipbookComponent c = new FlipbookComponent(slingRequest);
+%><% FlipbookService c = sling.getService(FlipbookService.class);
+     WCMMode.DISABLED.toRequest(slingRequest);
      int pageCount = 0;
      boolean first = true;%><%
 
@@ -16,19 +18,19 @@ import="com.activecq.tools.flipbook.*,
 %><cq:include script="pagination.jsp"/><%
 %><cq:include script="printcover.jsp"/><%
 
-%><% for(Resource fr : c.getPages()) {
+%><% for(Resource fr : c.getPages(resource)) {
         Component fc = fr.adaptTo(Component.class);
         ValueMap fp = fr.adaptTo(ValueMap.class);
 
-        List<ValueMap> dialogFields = c.getDialogFields(fr, FlipbookComponent.DialogType.DIALOG);
-        List<ValueMap> designDialogFields = c.getDialogFields(fr, FlipbookComponent.DialogType.DESIGN_DIALOG);
+        List<ValueMap> dialogFields = c.getDialogFields(fr, FlipbookService.DialogType.DIALOG);
+        List<ValueMap> designDialogFields = c.getDialogFields(fr, FlipbookService.DialogType.DESIGN_DIALOG);
         Map<String, String> htmlAttrMap = fc.getHtmlTagAttributes();
         %><%
 %><div class="js-flipbook-page flipbook-page clearfix <%= !first ? "hide" : "" %>" data-page-number="<%= pageCount %>">
 
     <%-- Begin Component Image --%>
     <div class="grid_4 js-gallery gallery">
-        <% int gallerySize = c.getImagePaths(fc).size(); %>
+        <% int gallerySize = c.getImagePaths(fc, resourceResolver).size(); %>
         <% if(gallerySize < 1) { %>
             <div class="image-placeholder">No image provided</div>
         <% } else { %>
@@ -43,7 +45,7 @@ import="com.activecq.tools.flipbook.*,
            <%-- Gallery Images --%>
            <div class="gallery-images"><%
                int count = 1;
-               for(String path : c.getImagePaths(fc)) {
+               for(String path : c.getImagePaths(fc, resourceResolver)) {
                %>
                     <a href="<%= path %>" class="js-gallery-image-link">
                     <img src="<%= QuickImageHelper.getSrc(path, 298, 0) %>" width="298px" data-gallery-id="<%= count %>" class="js-gallery-image gallery-image js-gallery-<%= pageCount %>  <%= count > 1 ? " hide" : "" %>" />
@@ -125,7 +127,7 @@ import="com.activecq.tools.flipbook.*,
                 <% if(StringUtils.isNotBlank(fc.getDescription())) { %><p><%= fc.getDescription() %></p><% } %>
 
                 <%-- Flipbook Extended Description --%>
-                <% final String readme = c.getReadme(fc); %>
+                <% final String readme = c.getReadme(fc, resourceResolver); %>
                 <% if(StringUtils.isNotBlank(readme)) { %>
                 <div class="flipbook-description"><%= readme %></div>
                 <% } %>

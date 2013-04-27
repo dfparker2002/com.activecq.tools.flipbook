@@ -124,8 +124,7 @@
                         </Embed-Dependency>
 
                         <Export-Package>
-                            ${project.groupId}.*;version=${project.version},
-                            com.activecq.api,
+                            ${project.groupId}.components.*;version=${project.version},
                             org.pegdown,
                             org.objectweb.asm,
                             org.objectweb.asm.tree,

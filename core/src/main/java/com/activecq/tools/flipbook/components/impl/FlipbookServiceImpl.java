@@ -13,26 +13,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.activecq.tools.flipbook;
+package com.activecq.tools.flipbook.components.impl;
 
-import com.activecq.api.ActiveComponent;
+import com.activecq.tools.flipbook.components.FlipbookService;
 import com.day.cq.commons.jcr.JcrConstants;
 import com.day.cq.search.PredicateGroup;
 import com.day.cq.search.Query;
+import com.day.cq.search.QueryBuilder;
 import com.day.cq.search.result.Hit;
 import com.day.cq.search.result.SearchResult;
-import com.day.cq.wcm.api.WCMMode;
+import com.day.cq.wcm.api.Page;
+import com.day.cq.wcm.api.PageManager;
 import com.day.cq.wcm.api.components.Component;
 import com.day.cq.wcm.api.components.Toolbar;
 import org.apache.commons.collections.IteratorUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.sling.api.SlingHttpServletRequest;
-import org.apache.sling.api.resource.LoginException;
+import org.apache.felix.scr.annotations.Property;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.Service;
 import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceResolver;
 import org.apache.sling.api.resource.ResourceUtil;
 import org.apache.sling.api.resource.ValueMap;
 import org.apache.tika.io.IOUtils;
+import org.osgi.framework.Constants;
 import org.pegdown.PegDownProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,83 +53,91 @@ import java.util.*;
  *
  * @author david
  */
-public class FlipbookComponent extends ActiveComponent {
+
+@org.apache.felix.scr.annotations.Component(
+        label = "Flipbook - Component Service",
+        description = "Encapsulates logic used by the Flipbook component.",
+        metatype = true,
+        immediate = false)
+@org.apache.felix.scr.annotations.Properties({
+        @Property(
+                label = "Vendor",
+                name = Constants.SERVICE_VENDOR,
+                value = "ActiveCQ",
+                propertyPrivate = true
+        )
+})
+@Service
+public class FlipbookServiceImpl implements FlipbookService {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-    private static final String COMPONENT_FLIPBOOK_NODE = "spec";
-    private static final String PAGE_FLIPBOOK_NODE = "flipbook";
 
-    private static final String[] README_NAMES = new String[] { "README.md", "SPEC.md", "README.html", "SPEC.html", "README.txt", "SPEC.txt", "README", "SPEC" };
-    private static final String[] IMAGE_EXTENSIONS = new String[] { "png", "jpg", "gif", "jpeg" };
-    private static final String[] PAGE_RESOURCE_SUPER_TYPES = new String[] {
+    private final String COMPONENT_FLIPBOOK_NODE = "spec";
+    private final String PAGE_FLIPBOOK_NODE = "flipbook";
+    private final String[] README_NAMES = new String[] { "README.md", "SPEC.md", "README.html", "SPEC.html", "README.txt", "SPEC.txt", "README", "SPEC" };
+    private final String[] IMAGE_EXTENSIONS = new String[] { "png", "jpg", "gif", "jpeg" };
+    private final String[] PAGE_RESOURCE_SUPER_TYPES = new String[] {
             "foundation/components/page",
             "wcm/mobile/components/page",
             "mcm/components/newsletter/page"
     };
+    private final int MAX_RESULTS = 10000;
+    private final String HIDDEN_COMPONENT_GROUP = ".hidden";
+    private final List<Resource> cachedWidgetResources = new ArrayList<Resource>();
 
-    private static final int MAX_RESULTS = 1000;
-    private static final String HIDDEN_COMPONENT_GROUP = ".hidden";
-    private List<String> paths;
 
-    private List<Resource> cachedWidgetResources = new ArrayList<Resource>();
+    @Reference
+    private QueryBuilder queryBuilder;
 
-    public static enum DialogType { DIALOG, DESIGN_DIALOG };
 
-    public FlipbookComponent(SlingHttpServletRequest request) throws RepositoryException, LoginException {
-        super(request);
-        this.Plugins.WCMMode.switchTo(WCMMode.DISABLED);
+    public Resource getFlipbookResource(final Resource resource) {
+        return resource.getChild("./" + PAGE_FLIPBOOK_NODE);
     }
 
-    public Resource getFlipbookResource() {
-        return this.getResource().getChild("./" + PAGE_FLIPBOOK_NODE);
+    public List<String> getPaths(final Page page) {
+        final String[] pathsArray = page.getProperties(PAGE_FLIPBOOK_NODE).get("paths", new String[]{"/apps"});
+        return Arrays.asList(pathsArray);
     }
 
-    public List<String> getPaths() {
-        if(this.paths == null) {
-            final String[] pathsArray = this.getPage().getProperties(PAGE_FLIPBOOK_NODE).get("paths", new String[]{"/apps"});
-            this.paths = Arrays.asList(pathsArray);
-        }
-
-        return this.paths;
+    public boolean getShowHidden(final ValueMap properties) {
+        return properties.get("./" + PAGE_FLIPBOOK_NODE + "/showHidden", false);
     }
 
-    public boolean getShowHidden() {
+    public List<Resource> getPages(final Resource resource) throws RepositoryException {
+        final ResourceResolver resourceResolver = resource.getResourceResolver();
+        final PageManager pageManager = resourceResolver.adaptTo(PageManager.class);
 
-        return this.getProperty("./" + PAGE_FLIPBOOK_NODE + "/showHidden", false);
-    }
+        final List<Resource> pages = new ArrayList<Resource>();
 
-    public List<Resource> getPages() throws RepositoryException {
-        List<Resource> pages = new ArrayList<Resource>();
-
-        Map<String, String> map = new HashMap<String, String>();
+        final Map<String, String> map = new HashMap<String, String>();
         map.put("type", "cq:Component");
 
         map.put("orderby", "@jcr:title");
         map.put("orderby.sort", "asc");
 
         map.put("p.offset", "0");
-        // Cowardly refusing to return more than 1000 results
+        // Cowardly refusing to return more than 10000 results
         // If you have more than 10,000 components something is seriously wrong
         // with your design approach
         map.put("p.limit", String.valueOf(MAX_RESULTS));
 
-        Query query = this.getQueryBuilder().createQuery(PredicateGroup.create(map),
-                this.getResourceResolver().adaptTo(Session.class));
-        SearchResult result = query.getResult();
+        final Query query = queryBuilder.createQuery(PredicateGroup.create(map),
+                resourceResolver.adaptTo(Session.class));
+        final SearchResult result = query.getResult();
 
         for (Hit hit : result.getHits()) {
             final ValueMap props = hit.getProperties();
             final String path = hit.getPath();
             boolean hide = true;
 
-            for(final String validPathPrefix : this.getPaths()) {
+            for(final String validPathPrefix : this.getPaths(pageManager.getContainingPage(resource))) {
                 if(StringUtils.startsWith(path, validPathPrefix.concat("/"))) {
                     hide = false;
                 }
             }
 
             if(!hide) {
-                if(!this.getShowHidden()) {
+                if(!this.getShowHidden(resource.adaptTo(ValueMap.class))) {
                     hide = StringUtils.equals(props.get("componentGroup", HIDDEN_COMPONENT_GROUP), "");
                 }
             }
@@ -142,8 +155,10 @@ public class FlipbookComponent extends ActiveComponent {
     }
 
     public List<ValueMap> getDialogFields(Resource resource, DialogType dialogType) throws RepositoryException {
-        List<ValueMap> list = new ArrayList<ValueMap>();
-        Component component = resource.adaptTo(Component.class);
+        final ResourceResolver resourceResolver = resource.getResourceResolver();
+        final List<ValueMap> list = new ArrayList<ValueMap>();
+        final Component component = resource.adaptTo(Component.class);
+
         String path;
 
         if(DialogType.DIALOG.equals(dialogType)) {
@@ -156,47 +171,49 @@ public class FlipbookComponent extends ActiveComponent {
             return list;
         }
 
-        if(this.cachedWidgetResources.isEmpty()) {
-            Map<String, String> map = new HashMap<String, String>();
-            //map.put("path", path);
-            map.put("type", "cq:Widget");
+        synchronized (this.cachedWidgetResources) {
+            if(this.cachedWidgetResources.isEmpty()) {
+                Map<String, String> map = new HashMap<String, String>();
+                //map.put("path", path);
+                map.put("type", "cq:Widget");
 
-            map.put("1_property.property", "xtype");
-            map.put("1_property.operation", "exists");
+                map.put("1_property.property", "xtype");
+                map.put("1_property.operation", "exists");
 
-            map.put("2_property.property", "name");
-            map.put("2_property.operation", "exists");
+                map.put("2_property.property", "name");
+                map.put("2_property.operation", "exists");
 
-            map.put("3_property.property", "fieldLabel");
-            map.put("3_property.operation", "exists");
+                map.put("3_property.property", "fieldLabel");
+                map.put("3_property.operation", "exists");
 
-            map.put("orderby", "@fieldLabel");
-            map.put("orderby.sort", "asc");
+                map.put("orderby", "@fieldLabel");
+                map.put("orderby.sort", "asc");
 
-            map.put("p.offset", "0");
-            map.put("p.limit", String.valueOf(Integer.MAX_VALUE));
+                map.put("p.offset", "0");
+                map.put("p.limit", String.valueOf(Integer.MAX_VALUE));
 
-            Query query = this.getQueryBuilder().createQuery(PredicateGroup.create(map),
-                    this.getResourceResolver().adaptTo(Session.class));
+                Query query = queryBuilder.createQuery(PredicateGroup.create(map),
+                        resourceResolver.adaptTo(Session.class));
 
-            for(Hit hit : query.getResult().getHits()) {
-                this.cachedWidgetResources.add(hit.getResource());
+                for(Hit hit : query.getResult().getHits()) {
+                    this.cachedWidgetResources.add(hit.getResource());
+                }
+            }
+
+            for (Resource cachedResource : this.cachedWidgetResources) {
+                if(StringUtils.startsWith(cachedResource.getPath(), path)) {
+                    list.add(cachedResource.adaptTo(ValueMap.class));
+                }
             }
         }
-
-        for (Resource cachedResource : this.cachedWidgetResources) {
-            if(StringUtils.startsWith(cachedResource.getPath(), path)) {
-                list.add(cachedResource.adaptTo(ValueMap.class));
-            }
-        }
-
         return list;
     }
 
-    public String getReadme(Component component) {
+    public String getReadme(final Component component, final ResourceResolver resourceResolver) {
+
         String contents = "";
 
-        final Resource cr = this.getResourceResolver().resolve(component.getPath());
+        final Resource cr = resourceResolver.resolve(component.getPath());
         final Resource flipbook = cr.getChild(COMPONENT_FLIPBOOK_NODE);
 
         if(flipbook == null) {
@@ -246,10 +263,10 @@ public class FlipbookComponent extends ActiveComponent {
 
     }
 
-    public List<String> getImagePaths(Component component) {
+    public List<String> getImagePaths(final Component component, final ResourceResolver resourceResolver) {
         List<String> paths = new ArrayList<String>();
 
-        final Resource cr = this.getResourceResolver().resolve(component.getPath());
+        final Resource cr = resourceResolver.resolve(component.getPath());
         if(cr == null) {
             return paths;
         }
@@ -283,8 +300,9 @@ public class FlipbookComponent extends ActiveComponent {
         return ArrayUtils.contains(PAGE_RESOURCE_SUPER_TYPES, component.getResourceType());
     }
 
-    private String getImagePath(String parentPage, String imageName) {
-        final Resource parent = this.getResourceResolver().resolve(parentPage);
+    private String getImagePath(final ResourceResolver resourceResolver, String parentPage, String imageName) {
+
+        final Resource parent = resourceResolver.resolve(parentPage);
         if(parent == null) { return null; }
 
         Resource imageResource = parent.getChild(imageName + ".png");
