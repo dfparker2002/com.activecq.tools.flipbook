@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0"
+    jcr:primaryType="sling:OsgiConfig"
+    prop.resource-type="foundation/components/parbase"
+    prop.image.max-width="{Long}1000"
+    prop.image.max-height="{Long}2048"
+    prop.white-list.extensions="[png,jpg,jpeg,gif]"
+    prop.white-list.paths="[^/(apps|libs|vendors)/.*/flipbook/.*]"
+    prop.white-list.widths=""
+    prop.white-list.heights=""
+    prop.white-list.rotation=""
+/>

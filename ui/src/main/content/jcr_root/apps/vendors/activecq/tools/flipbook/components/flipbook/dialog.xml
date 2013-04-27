@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0"
+    jcr:primaryType="cq:Dialog"
+    title="Flipbook Page"
+    activeTab="{Long}0"
+    xtype="dialog">
+    <items
+        jcr:primaryType="cq:Widget"
+        xtype="tabpanel">
+        <items jcr:primaryType="cq:WidgetCollection">
+            <tab1
+                jcr:primaryType="cq:Panel"
+                title="Flipbook Configuration">
+                <items jcr:primaryType="cq:WidgetCollection">
+                    <title
+                        jcr:primaryType="cq:Widget"
+                        fieldLabel="Flipbook Title"
+                        fieldDescription="Title of this flipbook"
+                        name="./jcr:title"
+                        xtype="textfield"
+                    />
+                    <paths
+                       jcr:primaryType="cq:Widget"
+                       fieldLabel="Component paths"
+                       fieldDescription="Populate this flipbook with components located under these paths. Defaults to /apps."
+                       name="./flipbook/paths"
+                       defaultValue="/apps"
+                       value="/apps"
+                       xtype="multifield"
+                       type="pathfield">
+                       <fieldConfig
+                            jcr:primaryType="cq:Widget"
+                            rootPath="/"
+                            predicate="folder"
+                            xtype="pathfield"/>
+                    </paths>
+                    <showHidden
+                        jcr:primaryType="cq:Widget"
+                        fieldLabel="Show hidden components"
+                        fieldDescription="Show components in the .hidden component group from displaying in this flipbook. Defaults to false."
+                        name="./flipbook/showHidden"
+                        defaultValue="{Boolean}false"
+                        xtype="selection"
+                        type="checkbox"/>
+                </items>
+            </tab1>
+        </items>
+    </items>
+</jcr:root>
