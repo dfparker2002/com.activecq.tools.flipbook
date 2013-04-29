@@ -7,24 +7,24 @@ import="com.activecq.tools.flipbook.components.*,
         org.apache.commons.lang.*,
         java.util.*"%><%
 %><%@include file="/apps/vendors/activecq/tools/flipbook/global/global.jsp" %><%
-%><% FlipbookService c = sling.getService(FlipbookService.class);
-     WCMMode.DISABLED.toRequest(slingRequest);
+%><% WCMMode.DISABLED.toRequest(slingRequest);
+     final FlipbookService c = sling.getService(FlipbookService.class);
+     final List<Resource> cachedWidgetResources = c.getWidgetResources(resource);
      int pageCount = 0;
-     boolean first = true;%><%
+     boolean first = true;
 
-%><%
 %><div class="js-flipbook flipbook"><%
 
 %><cq:include script="pagination.jsp"/><%
 %><cq:include script="printcover.jsp"/><%
 
 %><% for(Resource fr : c.getPages(resource)) {
-        Component fc = fr.adaptTo(Component.class);
-        ValueMap fp = fr.adaptTo(ValueMap.class);
+        final Component fc = fr.adaptTo(Component.class);
+        final ValueMap fp = fr.adaptTo(ValueMap.class);
 
-        List<ValueMap> dialogFields = c.getDialogFields(fr, FlipbookService.DialogType.DIALOG);
-        List<ValueMap> designDialogFields = c.getDialogFields(fr, FlipbookService.DialogType.DESIGN_DIALOG);
-        Map<String, String> htmlAttrMap = fc.getHtmlTagAttributes();
+        final List<ValueMap> dialogFields = c.getDialogFields(fr, FlipbookService.DialogType.DIALOG, cachedWidgetResources);
+        final List<ValueMap> designDialogFields = c.getDialogFields(fr, FlipbookService.DialogType.DESIGN_DIALOG, cachedWidgetResources);
+        final Map<String, String> htmlAttrMap = fc.getHtmlTagAttributes();
         %><%
 %><div class="js-flipbook-page flipbook-page clearfix <%= !first ? "hide" : "" %>" data-page-number="<%= pageCount %>">
 

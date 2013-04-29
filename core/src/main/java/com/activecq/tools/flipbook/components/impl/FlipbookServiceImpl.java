@@ -71,21 +71,6 @@ import java.util.*;
 public class FlipbookServiceImpl implements FlipbookService {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-
-    private final String COMPONENT_FLIPBOOK_NODE = "spec";
-    private final String PAGE_FLIPBOOK_NODE = "flipbook";
-    private final String[] README_NAMES = new String[] { "README.md", "SPEC.md", "README.html", "SPEC.html", "README.txt", "SPEC.txt", "README", "SPEC" };
-    private final String[] IMAGE_EXTENSIONS = new String[] { "png", "jpg", "gif", "jpeg" };
-    private final String[] PAGE_RESOURCE_SUPER_TYPES = new String[] {
-            "foundation/components/page",
-            "wcm/mobile/components/page",
-            "mcm/components/newsletter/page"
-    };
-    private final int MAX_RESULTS = 10000;
-    private final String HIDDEN_COMPONENT_GROUP = ".hidden";
-    private final List<Resource> cachedWidgetResources = new ArrayList<Resource>();
-
-
     @Reference
     private QueryBuilder queryBuilder;
 
@@ -154,7 +139,7 @@ public class FlipbookServiceImpl implements FlipbookService {
         return pages;
     }
 
-    public List<ValueMap> getDialogFields(Resource resource, DialogType dialogType) throws RepositoryException {
+    public List<ValueMap> getDialogFields(final Resource resource, final DialogType dialogType, List<Resource> cachedWidgetResources) throws RepositoryException {
         final ResourceResolver resourceResolver = resource.getResourceResolver();
         final List<ValueMap> list = new ArrayList<ValueMap>();
         final Component component = resource.adaptTo(Component.class);
@@ -165,49 +150,61 @@ public class FlipbookServiceImpl implements FlipbookService {
             path = component.getDialogPath();
         } else {
             path = component.getDesignDialogPath();
+            log.error("DESIGN PATH {} ", path);
         }
 
         if(StringUtils.isBlank(path)) {
             return list;
+        } else if(cachedWidgetResources == null) {
+            cachedWidgetResources = getWidgetResources(resource);
         }
 
-        synchronized (this.cachedWidgetResources) {
-            if(this.cachedWidgetResources.isEmpty()) {
-                Map<String, String> map = new HashMap<String, String>();
-                //map.put("path", path);
-                map.put("type", "cq:Widget");
-
-                map.put("1_property.property", "xtype");
-                map.put("1_property.operation", "exists");
-
-                map.put("2_property.property", "name");
-                map.put("2_property.operation", "exists");
-
-                map.put("3_property.property", "fieldLabel");
-                map.put("3_property.operation", "exists");
-
-                map.put("orderby", "@fieldLabel");
-                map.put("orderby.sort", "asc");
-
-                map.put("p.offset", "0");
-                map.put("p.limit", String.valueOf(Integer.MAX_VALUE));
-
-                Query query = queryBuilder.createQuery(PredicateGroup.create(map),
-                        resourceResolver.adaptTo(Session.class));
-
-                for(Hit hit : query.getResult().getHits()) {
-                    this.cachedWidgetResources.add(hit.getResource());
+        for (final Resource cachedResource : cachedWidgetResources) {
+            if(StringUtils.startsWith(cachedResource.getPath(), path)) {
+                if (DialogType.DESIGN_DIALOG.equals(dialogType)) {
+                    log.error("DD: {}", cachedResource.getPath());
                 }
-            }
 
-            for (Resource cachedResource : this.cachedWidgetResources) {
-                if(StringUtils.startsWith(cachedResource.getPath(), path)) {
                     list.add(cachedResource.adaptTo(ValueMap.class));
-                }
             }
         }
+
         return list;
     }
+
+    public List<Resource> getWidgetResources(final Resource resource) throws RepositoryException {
+        final ResourceResolver resourceResolver = resource.getResourceResolver();
+        final List<Resource> list = new ArrayList<Resource>();
+
+        Map<String, String> map = new HashMap<String, String>();
+
+        map.put("type", "cq:Widget");
+
+        map.put("1_property.property", "xtype");
+        map.put("1_property.operation", "exists");
+
+        map.put("2_property.property", "name");
+        map.put("2_property.operation", "exists");
+
+        map.put("3_property.property", "fieldLabel");
+        map.put("3_property.operation", "exists");
+
+        map.put("orderby", "@fieldLabel");
+        map.put("orderby.sort", "asc");
+
+        map.put("p.offset", "0");
+        map.put("p.limit", String.valueOf(Integer.MAX_VALUE));
+
+        Query query = queryBuilder.createQuery(PredicateGroup.create(map),
+                resourceResolver.adaptTo(Session.class));
+
+        for (final Hit hit : query.getResult().getHits()) {
+            list.add(hit.getResource());
+        }
+
+        return list;
+    }
+
 
     public String getReadme(final Component component, final ResourceResolver resourceResolver) {
 
